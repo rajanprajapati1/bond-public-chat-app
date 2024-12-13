@@ -1,9 +1,16 @@
-import Authentication from '@/components/custom/Authencation'
+import { Suspense } from 'react'
+import dynamic from 'next/dynamic'
 
-const page = () => {
+const DynamicAuthentication = dynamic(() => import('@/components/custom/Authencation'), {
+  loading: () => <p>Loading...</p>,
+})
+
+const Page = () => {
   return (
-    <Authentication/>
+    <Suspense fallback={<p>Loading...</p>}>
+      <DynamicAuthentication />
+    </Suspense>
   )
 }
 
-export default page
+export default Page
