@@ -5,22 +5,32 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send } from 'lucide-react';
+import { Handshake, Send } from 'lucide-react';
 import { useAuth } from '@/provider/AuthProvider';
+import { signInAnonymously } from 'firebase/auth';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '@/configs/Firebase'; // Assumes you have Firebase initialized
-import { collection, addDoc, query, onSnapshot, serverTimestamp, deleteDoc, doc, setDoc } from 'firebase/firestore';
+import { collection, addDoc, query, onSnapshot, serverTimestamp, deleteDoc, doc, setDoc, getDoc } from 'firebase/firestore';
 import Header from './Header';
 import SideButton from './SideButton';
+import { BottomDrawer } from './BottomDrawer';
+import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
+import Announcer from './Announcer';
+
 
 export default function ChatInterface() {
+  const searchParams = useSearchParams();
+  const prevActiveListRef = useRef([]); // Store the previous activeList
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef(null);
   const { authUser } = useAuth();
   const [activeUsers, setActiveUsers] = useState(0); // Track number of users
   const [activeList, setActiveList] = useState([]); // Store user data
-
+  const [inviteLink, setInviteLink] = useState("");
+  const [ShowAnnounce,setShowAnnounce] = useState(false)
+  const [LatestUser,setLatestUser] =useState(null)
   // Reference to Firebase messages collection
   const messagesCollectionRef = collection(db, 'chatMessages');
   const usersCollectionRef = collection(db, 'users'); // Reference for active users
@@ -55,12 +65,33 @@ export default function ChatInterface() {
         id: doc.id,
         ...doc.data(),
       }));
+   
       setActiveList(users);
+      const latestUser = users
+      .filter((user) => user?.timestamp) // Ensure timestamp exists
+      .sort((a, b) => b.timestamp.seconds - a.timestamp.seconds)[0]; // Sort by timestamp descending
+    if (latestUser) {
+      setLatestUser(latestUser); // Store the latest user if needed
+    } else {
+      console.error('No users with a valid join timestamp found!');
+    }
     });
 
     return () => unsubscribe();
   }, []);
 
+
+  useEffect(() => {
+    if (activeList.length > prevActiveListRef.current.length) {
+      setShowAnnounce(true);
+      setTimeout(() => {
+        setShowAnnounce(false);
+      }, 2000);
+    }
+  
+    prevActiveListRef.current = activeList;
+  }, [activeList]);
+  
   // Fetch messages in real-time
   useEffect(() => {
     const q = query(messagesCollectionRef);
@@ -72,7 +103,7 @@ export default function ChatInterface() {
       setMessages(fetchedMessages);
     });
 
-    return () => unsubscribe(); // Cleanup listener on component unmount
+    return () => unsubscribe();
   }, []);
 
   useEffect(scrollToBottom, [messages]);
@@ -101,35 +132,55 @@ export default function ChatInterface() {
 
   const logOut = async () => {
     try {
+      const url = new URL(window.location.href);
+      url.search = ''; 
+      window.history.pushState({}, '', url);
       await signOut(auth);
     } catch (error) {
       console.error('Error logging out:', error);
     }
   };
 
+
+  useEffect(() => {
+    if (authUser) {
+      const roomId = "default-room-id"; 
+      const inviteUrl = `${window.location.origin}/auth?room=${roomId}&invite=${authUser.uid}`;
+      setInviteLink(inviteUrl);
+    }
+  }, [authUser]);
+  
+
+
   return (
-<div className="flex flex-col w-[94%] sm:w-[60%] h-[80%] bg-gray-100 shadow-md rounded-lg">
-{/* Header */}
-      <Header live={activeUsers || 0} activeList={activeList}/>
+    <div className="flex flex-col w-[94%] sm:w-[60%] h-[80%] bg-gray-100 shadow-md rounded-lg">
+      {/* Header */}
+      <Header live={activeUsers || 0} activeList={activeList} />
 
       {/* Messages */}
-      <ScrollArea className="flex-grow p-4">
+      <ScrollArea className="flex-grow p-4 relative">
+        {ShowAnnounce && <Announcer user={LatestUser?.email || 'Anonymous'}/>}
+        {/* {activeList && activeList?.map((user) => {
+  const fallbackLetter = user?.email?.charAt(0) || user?.name?.charAt(0) || defaultName.charAt(0); */}
+
         {messages.sort((a, b) => a.timestamp?.toMillis() - b.timestamp?.toMillis()).map((message) => (
           <div
             key={message.id}
             className={`mb-4 ${message.sender === authUser?.email ? 'text-right' : 'text-left'}`}
           >
             <div
-              className={`inline-block px-4 py-2 rounded-md ${
-                message.sender === authUser?.email
+              className={`inline-block px-4 py-2 rounded-md ${message.sender === authUser?.email
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-secondary text-secondary-foreground'
-              }`}
+                }`}
             >
-              <div>{message.text}</div>
-              <Badge className="bg-blue-600 text-xs">
-                {message.sender === authUser?.email ? 'You' : message.sender}
-              </Badge>
+              <div className=''>
+                {message.text}</div>
+                <div className="bg-blue-600 text-xs -mt-0  text-white capitalize font-semibold flex items-center
+                 justify-center rounded-sm px-1">
+                {message.sender === authUser?.email ? 'You' : message.sender?.split('@')[0]}
+              </div>
+              
             </div>
           </div>
         ))}
@@ -150,9 +201,9 @@ export default function ChatInterface() {
           <Button onClick={handleSendMessage}>
             <Send className="h-4 w-4" />
           </Button>
+          <BottomDrawer inviteLink={inviteLink} />
         </div>
       </div>
-
       {/* Avatar and Dropdown */}
       <SideButton authUser={authUser} logOut={logOut} />
     </div>

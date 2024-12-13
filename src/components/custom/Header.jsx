@@ -3,9 +3,9 @@ import { Button } from '../ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import {LogOut,  Users, MoreVertical, Bell, Settings, ChevronDown } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar'
+import { faker } from '@faker-js/faker'
 
 const Header = ({live ,activeList}) => {
-  console.log(activeList,"list")
   return (
     <header className="bg-white shadow-sm p-4 flex justify-between items-center">
     <div className="flex items-center space-x-2">
@@ -18,22 +18,29 @@ const Header = ({live ,activeList}) => {
     <div className="flex items-center space-x-5">
     <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="flex items-center space-x-1">
+            <Button variant="ghost" size="sm" className="flex items-center space-x-1 relative">
+              {activeList?.length > 1 && <div className="green_dots absolute z-20 top-1 left-2 w-2 h-2 rounded-full bg-green-500"/>}
               <Users className="h-4 w-4" />
               <span className="text-sm">{live}</span>
               <ChevronDown className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            {activeList && activeList?.map((user) => (
-              <DropdownMenuItem key={user.id} className="flex items-center space-x-2">
-                <Avatar className="h-6 w-6">
-                  <AvatarImage src={user?.avatar} alt={user.name} />
-                  <AvatarFallback>{user.email.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <span>{user?.email}</span>
-              </DropdownMenuItem>
-            ))}
+          <DropdownMenuContent align="end" className="w-full">
+          {activeList && activeList?.map((user) => {
+  const defaultName = faker.name.firstName(); // Generate a random name using Faker
+  const fallbackLetter = user?.email?.charAt(0) || user?.name?.charAt(0) || defaultName.charAt(0);
+
+  return (
+    <DropdownMenuItem key={user.id} className="flex items-center w-full space-x-2">
+      <Avatar className="h-6 w-6 flex items-center justify-center uppercase font-bold">
+        <AvatarImage src={user?.avatar} alt={user?.name || defaultName} />
+        <AvatarFallback>{fallbackLetter}</AvatarFallback>
+      </Avatar>
+      <span>{user?.email || `${defaultName}@default.com`}</span>
+    </DropdownMenuItem>
+  );
+})}
+
           </DropdownMenuContent>
         </DropdownMenu>
       <DropdownMenu>

@@ -9,8 +9,8 @@ const SideButton = ({authUser,logOut}) => {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="p-0">
-              <Avatar>
-                <AvatarImage src={authUser?.dp} />
+              <Avatar className="flex items-center justify-around">
+                <AvatarImage className="w-8 h-8 rounded-full" src={authUser?.dp} />
                 <AvatarFallback>{authUser?.username?.substring(0,1)}</AvatarFallback>
               </Avatar>
               <ChevronDown className="ml-2 h-4 w-4" />
